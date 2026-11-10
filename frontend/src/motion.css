@@ -1,5 +1,5 @@
 /* Sistema de movimento do WaitOrBuy. Só transform/opacity (e stroke-dashoffset no SVG). Sem sombra, sem degradê.
-   Regra de ouro: o preço nunca conta; ele entra, não rola. Reduced-motion = só fade, sem deslocamento. */
+   Preço: `CountUp` (ui.tsx) sobe até o valor. Reduced-motion = só fade, sem deslocamento. */
 :root{
   --ease-out:cubic-bezier(0.23,1,0.32,1);
   --ease-in-out:cubic-bezier(0.77,0,0.175,1);
@@ -131,3 +131,22 @@ a.nav[aria-current="page"]::after{transform:scaleX(1)}
 .toast--out{opacity:0;transform:translate(-50%,calc(100% + var(--space-5)))}
 .dot{transition:background-color var(--dur-hover) var(--ease-out),border-color var(--dur-hover) var(--ease-out)}
 @media (prefers-reduced-motion:reduce){.bell{animation:none}.toast{animation-name:fade;transform:translateX(-50%)}.toast--out{transform:translateX(-50%)}}
+
+/* Preço em rolo: fita 0-9 repetida 3x sobe até o dígito (começa em 0, termina em 20+d), um dígito após o outro */
+.od{display:inline-block;height:1lh;overflow:hidden;vertical-align:top}
+.od-strip{display:block;transform:translateY(calc(var(--k) * -1lh));transition:transform 1300ms var(--ease-out);transition-delay:calc(var(--n) * 90ms)}
+.od-strip i{display:block;height:1lh;font-style:normal}
+@media (prefers-reduced-motion:reduce){.od-strip{transition:none}}
+
+/* "Compre agora" clicável: rola até o ranking e marca a loja mais barata */
+.verdict-btn{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;display:inline-flex;transition:transform var(--dur-press) var(--ease-out)}
+.verdict-btn:active{transform:scale(.96)}
+@media (hover:hover) and (pointer:fine){.verdict-btn:hover{transform:translateY(-2px)}}
+.rk{position:relative}
+.rk--flash::after{content:"";position:absolute;inset:0;border:3px solid var(--ink);border-radius:calc(var(--radius-lg) - 1px);pointer-events:none;animation:rk-flash 2000ms var(--ease-in-out) 500ms both}
+.rk--flash .rk-price{animation:stamp 500ms var(--ease-settle) 600ms both}
+@keyframes rk-flash{0%{opacity:0}15%,70%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.rk--flash .rk-price{animation:none}}
+
+/* Sem anel de foco em botões (decisão do usuário); o anel fica só nos campos de texto */
+button:focus-visible,button.wob-btn:focus-visible,.wob-switch:focus-visible{outline:0}

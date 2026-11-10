@@ -115,7 +115,7 @@ export const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" classNa
 export const Cap = ({ children }: { children: ReactNode }) => <span className="wob-cap">{children}</span>;
 
 // Ranking de lojas: 1º é o menor preço (ponto do logo); número = posição; diferença para o menor à direita.
-export function StoreRows({ offers }: { offers: Offer[] }) {
+export function StoreRows({ offers, flash }: { offers: Offer[]; flash?: number }) {
   if (!offers.length) return <p className="wob-hint">Sem ofertas no momento.</p>;
   const best = offers[0].price_brl;
   return (
@@ -123,7 +123,7 @@ export function StoreRows({ offers }: { offers: Offer[] }) {
       {offers.map((o, i) => {
         const off = Math.round(o.discount_pct) > 0 ? ` · −${Math.round(o.discount_pct)}%` : "";
         return (
-          <li key={o.store_id} className={`rk rise${i === 0 ? " rk--best" : ""}`} style={stag(i)}>
+          <li key={i === 0 ? `${o.store_id}-${flash ?? 0}` : o.store_id} className={`rk rise${i === 0 ? " rk--best" : ""}${i === 0 && flash ? " rk--flash" : ""}`} style={stag(i)}>
             <span className="rk-n" aria-label={`${i + 1}º lugar`}>{i + 1}</span>
             <div className="rk-store">
               {o.deal_url ? <a className="plain" href={o.deal_url} target="_blank" rel="sponsored noopener">{o.store_name}</a> : <b>{o.store_name}</b>}
@@ -181,5 +181,19 @@ export function PriceChart({ points }: { points: Point[] }) {
         </svg>
       </div>
     </div>
+  );
+}
+
+/** Preço em rolo (odômetro): cada dígito gira por uma fita 0-9 até o valor final, da esquerda para a direita. Reduced-motion: direto. */
+export function CountUp({ value, className }: { value: number | null | undefined; className?: string }) {
+  const [on, setOn] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => { if (on) return; const r = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true))); return () => cancelAnimationFrame(r); }, [on]);
+  const txt = brl(value); let n = 0;
+  return (
+    <span className={className} aria-label={txt}>
+      <span aria-hidden="true">{[...txt].map((c, i) => /\d/.test(c)
+        ? <span key={i} className="od"><span className="od-strip" style={{ "--k": on ? 20 + Number(c) : 0, "--n": n++ } as React.CSSProperties}>{Array.from({ length: 30 }, (_, j) => <i key={j}>{j % 10}</i>)}</span></span>
+        : <span key={i}>{c}</span>)}</span>
+    </span>
   );
 }

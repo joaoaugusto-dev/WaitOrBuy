@@ -3,11 +3,11 @@ import type { User } from "../session";
 import { api, brl } from "../api";
 import { PushPrompt } from "../push";
 import { pushRecent } from "../recent";
-import { Cap, Err, GameSkeleton, Loadable, PriceChart, StoreRows, stag, Verdict } from "../ui";
+import { Cap, CountUp, Err, GameSkeleton, Loadable, PriceChart, StoreRows, stag, Verdict } from "../ui";
 
 export default function Game({ id, user }: { id: number; user: User | null }) {
   const [g, setG] = useState<any>(null); const [h, setH] = useState<any>(null); const [days, setDays] = useState(90);
-  const [err, setErr] = useState<string | null>(null); const [msg, setMsg] = useState<string | null>(null); const [target, setTarget] = useState(""); const [made, setMade] = useState<number | null>(null);
+  const [err, setErr] = useState<string | null>(null); const [msg, setMsg] = useState<string | null>(null); const [target, setTarget] = useState(""); const [made, setMade] = useState<number | null>(null); const [flash, setFlash] = useState(0);
   useEffect(() => { setG(null); setErr(null); api(`/api/games/${id}`).then(setG).catch((e) => setErr(e.message)); }, [id]);
   useEffect(() => { if (g) pushRecent({ id, title: g.title, thumb: g.thumb ?? null }); }, [g, id]);
   useEffect(() => { api(`/api/games/${id}/history?days=${days}`).then(setH).catch((e) => setErr(e.message)); }, [id, days]);
@@ -33,18 +33,20 @@ export default function Game({ id, user }: { id: number; user: User | null }) {
         <div className="price-line">
           <div className="tight" style={{ gap: "var(--space-2)" }}>
             <Cap>MENOR PREÇO AGORA{best ? ` · ${best.store_name.toUpperCase()}` : ""}</Cap>
-            <span className="t-price-hero wob-num rise" style={{ animationDelay: "120ms" }}>{brl(best?.price_brl)}</span>
+            <CountUp className="t-price-hero wob-num rise" value={best?.price_brl} />
           </div>
-          <span style={{ "--vd": "350ms" } as React.CSSProperties}><Verdict verdict={v.verdict} /></span>
+          <span style={{ "--vd": "350ms" } as React.CSSProperties}>{v.verdict === "COMPRAR_AGORA"
+            ? <button type="button" className="verdict-btn" aria-label="Compre agora: ver onde comprar" onClick={() => { document.getElementById("ranking")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" }); setFlash((n) => n + 1); }}><Verdict verdict={v.verdict} /></button>
+            : <Verdict verdict={v.verdict} />}</span>
         </div>
         <p className="t-body-lg reason rise" style={{ animationDelay: "450ms" }}>{v.reasons[0]}</p>
         {v.reasons.slice(1).map((r: string, i: number) => <p key={i} className="wob-hint">{r}</p>)}
         <Cap>CONFIANÇA {String(v.confidence).toUpperCase()}{g.next_sale ? ` · ${g.next_sale.name.toUpperCase()} EM ${g.next_sale.days} DIAS` : ""}</Cap>
       </section>
 
-      <section className="tight">
+      <section className="tight" id="ranking">
         <h2 className="t-display-md">Onde comprar</h2><p className="wob-hint">Ranking do menor ao maior preço, em reais.</p>
-        <StoreRows offers={g.offers} />
+        <StoreRows offers={g.offers} flash={flash} />
         <p className="wob-hint">Preços de lojas fora da Steam são estimados pelo dólar PTAX e podem divergir do valor real em reais.</p>
       </section>
 

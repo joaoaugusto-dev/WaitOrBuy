@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, brl } from "../api";
 import { PushPrompt } from "../push";
 import { clearRecent, getRecent, type Recent } from "../recent";
 import type { User } from "../session";
-import { Cap, CardsSkeleton, Err, Loadable, stag, Verdict, Words, type Offer } from "../ui";
+import { Cap, CountUp, CardsSkeleton, Err, Loadable, stag, Verdict, Words, type Offer } from "../ui";
 
 type Card = { game_id: number; title: string; thumb: string | null; offer: Offer; stores?: number; verdict?: string | null };
 type Me = { wl: Card[]; alerts: any[]; prices: Record<number, number | null> };
@@ -14,7 +14,7 @@ function GameCard({ c, i, tag }: { c: Card; i: number; tag?: string }) {
       {c.thumb && <div className="gthumb"><img src={c.thumb} alt="" loading="lazy" /></div>}
       <h3>{c.title}</h3>
       <div className="line" style={{ justifyContent: "space-between" }}>
-        <span className="t-price-lg wob-num">{brl(c.offer.price_brl)}</span>
+        <CountUp className="t-price-lg wob-num" value={c.offer.price_brl} />
         <span className="wob-data">{Math.round(c.offer.discount_pct) > 0 && <span className="wob-off">−{Math.round(c.offer.discount_pct)}%</span>}</span>
       </div>
       {c.verdict && <Verdict verdict={c.verdict} small />}
@@ -102,7 +102,7 @@ const Invite = () => (
 );
 
 export default function Home({ user, notifs }: { user: User | null | undefined; notifs: any[] }) {
-  const [q, setQ] = useState(""); const [res, setRes] = useState<Card[] | null>(null);
+  const stale = useRef(0); const [q, setQ] = useState(""); const [res, setRes] = useState<Card[] | null>(null);
   const [deals, setDeals] = useState<Card[] | null>(null); const [err, setErr] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null); const [meErr, setMeErr] = useState<string | null>(null);
   useEffect(() => { api("/api/deals/home").then((d) => setDeals(d.deals.map((x: any) => ({ ...x, offer: x.offer })))).catch((e) => setErr(e.message)); }, []);
@@ -118,8 +118,9 @@ export default function Home({ user, notifs }: { user: User | null | undefined; 
   const search = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(null);
     if (!q.trim()) { setRes(null); return; }
-    try { setRes((await api(`/api/search?q=${encodeURIComponent(q.trim())}`)).results.map((r: any) => ({ game_id: r.game_id, title: r.title, thumb: r.thumb, offer: r.best_offer, stores: r.offers.length })).filter((r: Card) => r.offer)); }
-    catch (x: any) { setErr(x.message); }
+    const mine = ++stale.current;
+    try { const r = (await api(`/api/search?q=${encodeURIComponent(q.trim())}`)).results; if (mine === stale.current) setRes(r.map((r: any) => ({ game_id: r.game_id, title: r.title, thumb: r.thumb, offer: r.best_offer, stores: r.offers.length })).filter((r: Card) => r.offer)); }
+    catch (x: any) { if (mine === stale.current) setErr(x.message); }
   };
   const list = res ?? deals, wished = new Set(me?.wl.map((c) => c.game_id));
   return (
@@ -129,13 +130,13 @@ export default function Home({ user, notifs }: { user: User | null | undefined; 
           <span style={{ "--vd": "700ms" } as React.CSSProperties}><Verdict verdict="COMPRAR_AGORA" /></span>
           <span style={{ "--vd": "820ms" } as React.CSSProperties}><Verdict verdict="ESPERAR" /></span>
         </div>
-        <h1 className="t-display-xl"><Words text="Espere ou compre?" /></h1>
+        <h1 className="t-display-xl"><Words text="Wait or Buy?" /></h1>
         <form className="search rise" style={{ animationDelay: "520ms" }} onSubmit={search} role="search">
           <div className="wob-field" style={{ flex: 1, maxWidth: "none" }}>
             <label htmlFor="q">Buscar jogo</label>
-            <div className="wob-input"><input id="q" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" /></div>
+            <div className="wob-input"><input id="q" value={q} onChange={(e) => { setQ(e.target.value); if (!e.target.value.trim()) { stale.current++; setRes(null); setErr(null); } }} autoComplete="off" /></div>
           </div>
-          <button className="wob-btn wob-btn--primary" style={{ alignSelf: "flex-end", height: 64 }}>Buscar</button>
+          <button className="wob-btn wob-btn--primary" style={{ alignSelf: "flex-end" }}>Buscar</button>
         </form>
         <p className="wob-hint rise" style={{ marginTop: "var(--space-3)", animationDelay: "640ms" }}>Comparamos as lojas, convertemos para reais e dizemos se vale esperar.</p>
       </section>
